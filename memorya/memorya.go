@@ -1,4 +1,4 @@
-package memorya
+package storage
 
 import (
 	"fmt"
@@ -7,15 +7,15 @@ import (
 )
 
 type Memorya struct {
-	Storage          storage.Storage
+	storage          storage.Storage
 	prompt           string
 	maxContextSize   int
 	sequentialMemory []storage.Message
 }
 
-func InitMemorya(st storage.Storage, maxSize int) *Memorya {
+func InitMemorya(maxSize int, storage storage.Storage) *Memorya {
 	return &Memorya{
-		Storage:          st,
+		storage:          storage,
 		maxContextSize:   maxSize,
 		sequentialMemory: make([]storage.Message, 0),
 	}
@@ -35,9 +35,14 @@ func (m *Memorya) Reset() {
 
 func (m *Memorya) AddMessage(message storage.Message) {
 	fmt.Println("added message to memorya: " + message.Content)
+
+	err := m.storage.StoreMessage(message)
+	if err != nil {
+		panic(err)
+	}
+	// remove embeddings from memory
+	message.Embeddings = []float32{}
 	m.sequentialMemory = append(m.sequentialMemory, message)
-	// persist it
-	m.Storage.StoreMessage(message)
 }
 
 func (m *Memorya) GetMessages() []storage.Message {
