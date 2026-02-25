@@ -96,7 +96,7 @@ func main() {
         Content: "Always answer in concise bullet points.",
     }, true)
 
-    // Embedded message triggers recall in Refresh().
+    // Embedded message triggers recall during internal context refresh.
     emb := []float32{0.12, 0.98, -0.44}
     memory.AddMessage(st.Message{
         Role:       "user",
@@ -137,11 +137,11 @@ memory.SetSummarizer(&MySummarizer{})
 
 ## Refresh Behavior
 
-`AddMessage(...)` automatically calls `Refresh()`.
+`AddMessage(...)` automatically runs internal context refresh.
 
 During refresh:
 
-1. If the new message had embeddings, Memorya runs `Remember()` via `SearchRelatedMessages`.
+1. If the new message had embeddings, Memorya runs internal recall via `SearchRelatedMessages`.
 2. Related messages are compacted into one system recall message and injected into active context (deduplicated).
 3. If context exceeds max size:
    - pinned messages are always preserved,
@@ -156,5 +156,3 @@ During refresh:
 - `AddMessage(message storage.Message, pinned bool)`
 - `GetMessages() []storage.Message`
 - `Reset()`
-- `Refresh()`
-- `Remember(queryEmbeddings []float32) []storage.Message`

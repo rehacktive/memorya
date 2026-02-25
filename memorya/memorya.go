@@ -60,13 +60,13 @@ func (m *Memorya) AddMessage(message storage.Message, pinned bool) {
 	m.sequentialMemory = append(m.sequentialMemory, message)
 
 	// refresh memory
-	m.Refresh()
+	m.refresh()
 }
 
-func (m *Memorya) Refresh() {
+func (m *Memorya) refresh() {
 	workingMemory := append([]storage.Message(nil), m.sequentialMemory...)
 	if len(m.pendingRecall) > 0 {
-		recalled := m.Remember(m.pendingRecall)
+		recalled := m.remember(m.pendingRecall)
 		if recallMessage, ok := buildRecallMessage(recalled, workingMemory); ok {
 			workingMemory = append(workingMemory, recallMessage)
 		}
@@ -126,7 +126,7 @@ func (m *Memorya) GetMessages() []storage.Message {
 }
 
 // this will search on the database if there are related conversations via embeddings
-func (m *Memorya) Remember(queryEmbeddings []float32) []storage.Message {
+func (m *Memorya) remember(queryEmbeddings []float32) []storage.Message {
 	if len(queryEmbeddings) == 0 {
 		return nil
 	}
