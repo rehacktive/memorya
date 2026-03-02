@@ -7,6 +7,7 @@ It keeps an in-memory working context, persists messages to your storage backend
 ## Features
 
 - Sequential conversation memory for active context (`GetMessages()`).
+- Runtime status snapshot (`GetStatus()`) for memory introspection.
 - Persistent storage integration (`StoreMessage` on each added message).
 - Pinned messages that are never summarized or removed from active context.
 - Automatic context shrinking when max size is reached.
@@ -53,6 +54,18 @@ To make Memorya work correctly, your storage implementation must:
 
 - `Embeddings *[]float32`: optional query vector used for recall.
 - `Pinned bool`: if true, message is never summarized or removed from active context.
+
+### Status
+
+`GetStatus()` returns:
+
+- `MaxContextSize`
+- `CurrentSize`
+- `PinnedCount`
+- `UnpinnedCount`
+- `HasSummarizer`
+- `HasPendingRecall`
+- `OverCapacity`
 
 ## Quick Start
 
@@ -155,4 +168,5 @@ During refresh:
 - `SetSummarizer(summarizer Summarizer)`
 - `AddMessage(message storage.Message, pinned bool)`
 - `GetMessages() []storage.Message`
+- `GetStatus() Status`
 - `Reset()`

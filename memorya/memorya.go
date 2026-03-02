@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/rehacktive/memorya/storage"
@@ -17,6 +16,16 @@ type Memorya struct {
 	sequentialMemory []storage.Message
 	summarizer       Summarizer
 	pendingRecall    []float32
+}
+
+type Status struct {
+	MaxContextSize   int
+	CurrentSize      int
+	PinnedCount      int
+	UnpinnedCount    int
+	HasSummarizer    bool
+	HasPendingRecall bool
+	OverCapacity     bool
 }
 
 func InitMemorya(maxSize int, st storage.Storage) *Memorya {
@@ -45,7 +54,6 @@ func (m *Memorya) Reset() {
 }
 
 func (m *Memorya) AddMessage(message storage.Message, pinned bool) {
-	fmt.Println("added message to memorya: " + message.Content)
 	if message.Embeddings != nil && len(*message.Embeddings) > 0 {
 		m.pendingRecall = append([]float32(nil), (*message.Embeddings)...)
 	}
@@ -123,6 +131,19 @@ func (m *Memorya) refresh() {
 
 func (m *Memorya) GetMessages() []storage.Message {
 	return m.sequentialMemory
+}
+
+func (m *Memorya) GetStatus() Status {
+	pinned, unpinned := splitPinned(m.sequentialMemory)
+	return Status{
+		MaxContextSize:   m.maxContextSize,
+		CurrentSize:      len(m.sequentialMemory),
+		PinnedCount:      len(pinned),
+		UnpinnedCount:    len(unpinned),
+		HasSummarizer:    m.summarizer != nil,
+		HasPendingRecall: len(m.pendingRecall) > 0,
+		OverCapacity:     m.maxContextSize > 0 && len(m.sequentialMemory) > m.maxContextSize,
+	}
 }
 
 // this will search on the database if there are related conversations via embeddings

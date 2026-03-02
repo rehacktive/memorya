@@ -180,3 +180,36 @@ func TestAddMessageStoresMessageWhenEmbeddingsPresent(t *testing.T) {
 		t.Fatalf("expected one stored message, got %d", len(store.messages))
 	}
 }
+
+func TestGetStatus(t *testing.T) {
+	store := &fakeStorage{}
+	summarizer := &fakeSummarizer{}
+	mem := InitMemoryaWithSummarizer(3, store, summarizer)
+
+	mem.AddMessage(st.Message{Role: "system", Content: "pin"}, true)
+	mem.AddMessage(st.Message{Role: "user", Content: "u1"}, false)
+	mem.AddMessage(st.Message{Role: "assistant", Content: "a1"}, false)
+
+	status := mem.GetStatus()
+	if status.MaxContextSize != 3 {
+		t.Fatalf("expected max context size 3, got %d", status.MaxContextSize)
+	}
+	if status.CurrentSize != 3 {
+		t.Fatalf("expected current size 3, got %d", status.CurrentSize)
+	}
+	if status.PinnedCount != 1 {
+		t.Fatalf("expected pinned count 1, got %d", status.PinnedCount)
+	}
+	if status.UnpinnedCount != 2 {
+		t.Fatalf("expected unpinned count 2, got %d", status.UnpinnedCount)
+	}
+	if !status.HasSummarizer {
+		t.Fatalf("expected summarizer flag true")
+	}
+	if status.HasPendingRecall {
+		t.Fatalf("expected no pending recall")
+	}
+	if status.OverCapacity {
+		t.Fatalf("expected not over capacity")
+	}
+}
