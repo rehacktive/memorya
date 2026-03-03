@@ -69,7 +69,7 @@ func TestRefreshPreservesPinnedMessages(t *testing.T) {
 func TestRefreshSummarizesOnlyUnpinnedWhenNeeded(t *testing.T) {
 	store := &fakeStorage{}
 	summarizer := &fakeSummarizer{}
-	mem := InitMemoryaWithSummarizer(3, store, summarizer)
+	mem := InitMemoryaWithSummarizer(4, store, summarizer)
 
 	mem.AddMessage(st.Message{Role: "user", Content: "a"}, false)
 	mem.AddMessage(st.Message{Role: "system", Content: "pin"}, true)
@@ -77,21 +77,18 @@ func TestRefreshSummarizesOnlyUnpinnedWhenNeeded(t *testing.T) {
 	mem.AddMessage(st.Message{Role: "user", Content: "c"}, false)
 
 	msgs := mem.GetMessages()
-	if len(msgs) != 3 {
-		t.Fatalf("expected 3 messages, got %d", len(msgs))
+	if len(msgs) != 2 {
+		t.Fatalf("expected 2 messages after compaction, got %d", len(msgs))
 	}
-	if msgs[0].Content != "summary: a | b" {
+	if msgs[0].Content != "summary: a | b | c" {
 		t.Fatalf("expected summary as first message, got %+v", msgs[0])
 	}
 	if !msgs[1].Pinned || msgs[1].Content != "pin" {
-		t.Fatalf("expected pinned message untouched in middle, got %+v", msgs[1])
-	}
-	if msgs[2].Content != "c" {
-		t.Fatalf("expected most recent unpinned to remain, got %+v", msgs[2])
+		t.Fatalf("expected pinned message untouched, got %+v", msgs[1])
 	}
 
-	if len(summarizer.captured) != 2 {
-		t.Fatalf("expected summarizer to receive two unpinned messages, got %d", len(summarizer.captured))
+	if len(summarizer.captured) != 3 {
+		t.Fatalf("expected summarizer to receive three unpinned messages, got %d", len(summarizer.captured))
 	}
 	for _, msg := range summarizer.captured {
 		if msg.Pinned {
@@ -110,11 +107,11 @@ func TestRefreshFallsBackWhenSummarizerFails(t *testing.T) {
 	mem.AddMessage(st.Message{Role: "user", Content: "c"}, false)
 
 	msgs := mem.GetMessages()
-	if len(msgs) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(msgs))
+	if len(msgs) != 1 {
+		t.Fatalf("expected 1 message after fallback compaction, got %d", len(msgs))
 	}
-	if msgs[0].Content != "b" || msgs[1].Content != "c" {
-		t.Fatalf("expected fallback to keep most recent messages, got %+v", msgs)
+	if msgs[0].Content != "c" {
+		t.Fatalf("expected fallback to keep latest unpinned message, got %+v", msgs)
 	}
 }
 
@@ -194,14 +191,14 @@ func TestGetStatus(t *testing.T) {
 	if status.MaxContextSize != 3 {
 		t.Fatalf("expected max context size 3, got %d", status.MaxContextSize)
 	}
-	if status.CurrentSize != 3 {
-		t.Fatalf("expected current size 3, got %d", status.CurrentSize)
+	if status.CurrentSize != 2 {
+		t.Fatalf("expected current size 2, got %d", status.CurrentSize)
 	}
 	if status.PinnedCount != 1 {
 		t.Fatalf("expected pinned count 1, got %d", status.PinnedCount)
 	}
-	if status.UnpinnedCount != 2 {
-		t.Fatalf("expected unpinned count 2, got %d", status.UnpinnedCount)
+	if status.UnpinnedCount != 1 {
+		t.Fatalf("expected unpinned count 1, got %d", status.UnpinnedCount)
 	}
 	if !status.HasSummarizer {
 		t.Fatalf("expected summarizer flag true")

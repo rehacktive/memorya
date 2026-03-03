@@ -86,8 +86,8 @@ func (m *Memorya) refresh() {
 		return
 	}
 
-	// Check if we've exceeded maxContextSize
-	if len(workingMemory) <= m.maxContextSize {
+	// Trigger compaction once max context is reached.
+	if len(workingMemory) < m.maxContextSize {
 		m.sequentialMemory = workingMemory
 		return
 	}
@@ -95,38 +95,32 @@ func (m *Memorya) refresh() {
 	pinned, unpinned := splitPinned(workingMemory)
 
 	// Pinned messages can make the context exceed max size by design.
-	available := m.maxContextSize - len(pinned)
-	if available <= 0 {
+	if m.maxContextSize-len(pinned) <= 0 {
 		m.sequentialMemory = pinned
 		return
 	}
 
-	if len(unpinned) <= available {
-		m.sequentialMemory = mergeInOriginalOrder(workingMemory, pinned, unpinned)
-		return
-	}
-
-	condensedUnpinned := unpinned[len(unpinned)-available:]
-	if m.summarizer != nil && available > 1 {
-		recentCount := available - 1
-		summaryCandidates := unpinned[:len(unpinned)-recentCount]
-		recent := unpinned[len(unpinned)-recentCount:]
-
-		if len(summaryCandidates) > 0 {
-			summary, err := m.summarizer.Summarize(summaryCandidates)
-			if err == nil {
-				summary.Pinned = false
-				if summary.Role == "" {
-					summary.Role = "system"
-				}
-				// Best effort persist of synthesized memory.
-				_ = m.storage.StoreMessage(summary)
-				condensedUnpinned = append([]storage.Message{summary}, recent...)
+	// New policy: compact all unpinned context into one summary message.
+	if m.summarizer != nil && len(unpinned) > 0 {
+		summary, err := m.summarizer.Summarize(unpinned)
+		if err == nil {
+			summary.Pinned = false
+			if summary.Role == "" {
+				summary.Role = "system"
 			}
+			// Best effort persist of synthesized memory.
+			_ = m.storage.StoreMessage(summary)
+			m.sequentialMemory = mergeInOriginalOrder(workingMemory, pinned, []storage.Message{summary})
+			return
 		}
 	}
 
-	m.sequentialMemory = mergeInOriginalOrder(workingMemory, pinned, condensedUnpinned)
+	// Fallback without summarizer: keep only the latest unpinned message.
+	if len(unpinned) > 0 {
+		m.sequentialMemory = mergeInOriginalOrder(workingMemory, pinned, []storage.Message{unpinned[len(unpinned)-1]})
+		return
+	}
+	m.sequentialMemory = pinned
 }
 
 func (m *Memorya) GetMessages() []storage.Message {
